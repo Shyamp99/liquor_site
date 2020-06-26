@@ -1,0 +1,490 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!--
+This file is subject to the terms and conditions defined in the
+files 'LICENSE' and 'NOTICE', which are part of this source
+code package.
+--><!--
+ - This file configures the Entity Engine JDBC (or other DataSource) and JTA
+access. For a detailed description see the core/docs/entityconfig.html file.
+--><entity-config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://ofbiz.apache.org/dtds/entity-config.xsd">
+    <resource-loader class="org.ofbiz.base.config.FileLoader" name="fieldfile" prefix="/framework/entity/fieldtype/" prepend-env="ofbiz.home"/>
+
+    <!-- the transaction factory class to use, one is needed for each way of getting JTA interfaces -->
+    <!-- Use this one for Geronimo -->
+    <transaction-factory class="org.ofbiz.entity.transaction.GeronimoTransactionFactory"/>
+
+    <!-- Use this one for getting the JTA objects from JNDI -->
+    <!-- NOTE: to use the JndiFactory you must specify the necessary JNDI properties
+    <transaction-factory class="org.ofbiz.entity.transaction.JNDITransactionFactory">
+        <user-transaction-jndi jndi-server-name="default" jndi-name="java:comp/UserTransaction"/>
+        <transaction-manager-jndi jndi-server-name="default" jndi-name="java:comp/UserTransaction"/>
+    </transaction-factory>
+    -->
+    <!--
+        It is common to use UserTransaction for the TransactionManager, but if that doesn't work, try this: <transaction-manager-jndi jndi-server-name="default" jndi-name="java:comp/TransactionManager"/>
+        Common UserTransaction locations:
+            java:comp/UserTransaction (most servers: Resin, Orion, OC4J, etc)
+            UserTransaction (RexIP)
+        JBoss uses two different objects for the UserTransaction and TransactionManager interfaces;
+        they are located in JNDI at: "java:comp/UserTransaction" and "java:/TransactionManager" respectively
+    -->
+
+    <!-- the connection factory class to use, one is needed for obtaining connections/pools for defined resources -->
+    <connection-factory class="org.ofbiz.entity.connection.DBCPConnectionFactory"/>
+
+    <debug-xa-resources value="false"/>  <!-- see https://issues.apache.org/jira/browse/OFBIZ-4282 for more -->
+    
+    <delegator distributed-cache-clear-enabled="false" entity-eca-reader="main" entity-group-reader="main" entity-model-reader="main" name="default">
+        <group-map datasource-name="localmysql" group-name="org.ofbiz"/>
+        <group-map datasource-name="localmysql" group-name="org.ofbiz.olap"/>
+        <group-map datasource-name="localmysql" group-name="org.ofbiz.tenant"/>
+    </delegator>
+    <delegator distributed-cache-clear-enabled="false" entity-eca-enabled="false" entity-eca-reader="main" entity-group-reader="main" entity-model-reader="main" name="default-no-eca">
+        <group-map datasource-name="localmysql" group-name="org.ofbiz"/>
+        <group-map datasource-name="localmysql" group-name="org.ofbiz.olap"/>
+        <group-map datasource-name="localmysql" group-name="org.ofbiz.tenant"/>
+    </delegator>
+
+    <!-- be sure that your default delegator (or the one you use) uses the same datasource for test. You must run "ant load-demo" before running "ant run-tests" -->
+    <delegator entity-eca-reader="main" entity-group-reader="main" entity-model-reader="main" name="test">
+        <group-map datasource-name="localmysql" group-name="org.ofbiz"/>
+        <group-map datasource-name="localderbyolap" group-name="org.ofbiz.olap"/>
+        <group-map datasource-name="localderbytenant" group-name="org.ofbiz.tenant"/>
+    </delegator>
+   
+    <!-- need to at least define a name for each component to use -->
+    <entity-model-reader name="main"/>
+
+    <!-- need to at least define a name for each component to use -->
+    <entity-group-reader name="main"/>
+
+    <!-- need to at least define a name for each component to use -->
+    <entity-eca-reader name="main"/>
+
+    <!-- need to at least define a name for each component to use -->
+    <!-- defining:
+        tenant       = OFBiz and External Tenant Data
+        seed         = OFBiz and External Seed Data - to be maintained along with source and updated whenever a system deployment is updated
+        seed-initial = OFBiz and External Seed Data - to be maintained along with source like other seed data, but only loaded initially and not updated when a system is updated except manually reviewing each line
+        demo         = OFBiz Only Demo Data
+        ext          = External General Data (custom)
+        ext-test     = External Test Data (custom)
+        ext-demo     = External Demo Data (custom)
+    -->
+    <entity-data-reader name="tenant"/>
+    <entity-data-reader name="seed"/>
+    <entity-data-reader name="seed-initial"/>
+    <entity-data-reader name="demo"/>
+    <entity-data-reader name="ext"/>
+    <entity-data-reader name="ext-test"/>
+    <entity-data-reader name="ext-demo"/>
+
+    <field-type loader="fieldfile" location="fieldtypehsql.xml" name="hsql"/>
+    <field-type loader="fieldfile" location="fieldtypederby.xml" name="derby"/>
+    <field-type loader="fieldfile" location="fieldtypemysql.xml" name="mysql"/>
+    <field-type loader="fieldfile" location="fieldtypepostgres.xml" name="postgres"/>
+    <field-type loader="fieldfile" location="fieldtypepostnew.xml" name="postnew"/>
+    <field-type loader="fieldfile" location="fieldtypeoracle.xml" name="oracle"/>
+    <field-type loader="fieldfile" location="fieldtypesapdb.xml" name="sapdb"/>
+    <field-type loader="fieldfile" location="fieldtypefirebird.xml" name="firebird"/>
+    <field-type loader="fieldfile" location="fieldtypemssql.xml" name="mssql"/>
+    <field-type loader="fieldfile" location="fieldtypeadvantage.xml" name="advantage"/>
+    <field-type loader="fieldfile" location="fieldtypemariadb.xml" name="mariadb"/>
+    
+    <!--
+    For DAO/JDBC Helper: Tries:
+      1. JNDI Datasource IF jdbc.jndi.name, context.provider, etc are specified
+      2. Embedded (JOTM) if available (uses jdbc.driver, jdbc.uri, jdbc.username, jdbc.password, isolation.level)
+      3. Direct to manually loaded JDBC driver (uses jdbc.driver, jdbc.uri, jdbc.username, jdbc.password)
+
+    Transaction Isolation Levels - (<helperName>.isolation.level) can be as follows:
+     * None
+     * ReadCommitted (Recommended)
+     * ReadUncommitted
+     * RepeatableRead
+     * Serializable (NOT Recommended)
+     * Not set uses database default
+    -->
+    <datasource add-missing-on-start="true" alias-view-columns="true" check-indices-on-start="true" check-on-start="true" field-type-name="hsql" helper-class="org.ofbiz.entity.datasource.GenericHelperDAO" join-style="ansi-no-parenthesis" name="localhsql" use-fk-initially-deferred="false" use-foreign-key-indices="true" use-foreign-keys="true">
+        <read-data reader-name="tenant"/>
+        <read-data reader-name="seed"/>
+        <read-data reader-name="seed-initial"/>
+        <read-data reader-name="demo"/>
+        <read-data reader-name="ext"/>
+        <read-data reader-name="ext-test"/>
+        <read-data reader-name="ext-demo"/>
+        <inline-jdbc isolation-level="ReadCommitted" jdbc-driver="org.hsqldb.jdbcDriver" jdbc-password="ofbiz" jdbc-uri="jdbc:hsqldb:runtime/data/hsqldb/ofbiz" jdbc-username="ofbiz" pool-maxsize="100" pool-minsize="2" time-between-eviction-runs-millis="600000"/>
+        <!-- <jndi-jdbc jndi-server-name="localjndi" jndi-name="java:/HsqlDataSource" isolation-level="ReadUncommitted"/> -->
+        <!-- <jndi-jdbc jndi-server-name="default" jndi-name="comp/env/jdbc/xa/localhsql" isolation-level="ReadUncommitted"/> --> <!-- Orion Style JNDI name -->
+        <!-- <jndi-jdbc jndi-server-name="localjndi" jndi-name="localhsqlDataSource"/> --> <!-- Weblogic Style JNDI name -->
+    </datasource>
+
+    <datasource add-missing-on-start="true" alias-view-columns="false" check-on-start="true" field-type-name="derby" helper-class="org.ofbiz.entity.datasource.GenericHelperDAO" name="localderby" offset-style="fetch" schema-name="OFBIZ" use-indices-unique="false" use-order-by-nulls="true" use-pk-constraint-names="false">
+        <read-data reader-name="tenant"/>
+        <read-data reader-name="seed"/>
+        <read-data reader-name="seed-initial"/>
+        <read-data reader-name="demo"/>
+        <read-data reader-name="ext"/>
+        <read-data reader-name="ext-test"/>
+        <read-data reader-name="ext-demo"/>
+        <!-- beware use-indices-unique="false" is needed because of Derby bug with null values in a unique index -->
+        <inline-jdbc isolation-level="ReadCommitted" jdbc-driver="org.apache.derby.jdbc.EmbeddedDriver" jdbc-password-lookup="derby-ofbiz" jdbc-uri="jdbc:derby:ofbiz;create=true" jdbc-username="ofbiz" pool-jdbc-test-stmt="values 1" pool-maxsize="100" pool-minsize="2" soft-min-evictable-idle-time-millis="600000" test-on-borrow="true" time-between-eviction-runs-millis="600000"/>
+        <!-- <jndi-jdbc jndi-server-name="localjndi" jndi-name="java:/DerbyDataSource" isolation-level="ReadCommitted"/> -->
+    </datasource>
+    <datasource add-missing-on-start="true" alias-view-columns="false" check-on-start="true" field-type-name="derby" helper-class="org.ofbiz.entity.datasource.GenericHelperDAO" name="localderbyodbc" offset-style="fetch" schema-name="OFBIZ" use-indices-unique="false" use-order-by-nulls="true" use-pk-constraint-names="false">
+        <!-- beware use-indices-unique="false" is needed because of Derby bug with null values in a unique index -->
+        <inline-jdbc isolation-level="ReadCommitted" jdbc-driver="org.apache.derby.jdbc.EmbeddedDriver" jdbc-password-lookup="derby-ofbizodbc" jdbc-uri="jdbc:derby:ofbizodbc;create=true" jdbc-username="ofbiz" pool-maxsize="100" pool-minsize="2" time-between-eviction-runs-millis="600000"/>
+        <!-- <jndi-jdbc jndi-server-name="localjndi" jndi-name="java:/DerbyDataSource" isolation-level="ReadCommitted"/> -->
+    </datasource>
+    <datasource add-missing-on-start="true" alias-view-columns="false" check-on-start="true" field-type-name="derby" helper-class="org.ofbiz.entity.datasource.GenericHelperDAO" name="localderbyolap" schema-name="OFBIZ" use-indices-unique="false" use-order-by-nulls="true" use-pk-constraint-names="false">
+        <!-- beware use-indices-unique="false" is needed because of Derby bug with null values in a unique index -->
+        <read-data reader-name="tenant"/>
+        <read-data reader-name="seed"/>
+        <read-data reader-name="seed-initial"/>
+        <read-data reader-name="demo"/>
+        <read-data reader-name="ext"/>
+        <read-data reader-name="ext-test"/>
+        <read-data reader-name="ext-demo"/>
+        <inline-jdbc isolation-level="ReadCommitted" jdbc-driver="org.apache.derby.jdbc.EmbeddedDriver" jdbc-password-lookup="derby-ofbizolap" jdbc-uri="jdbc:derby:ofbizolap;create=true" jdbc-username="ofbiz" pool-maxsize="100" pool-minsize="2" time-between-eviction-runs-millis="600000"/>
+        <!-- <jndi-jdbc jndi-server-name="localjndi" jndi-name="java:/DerbyDataSource" isolation-level="ReadCommitted"/> -->
+    </datasource>
+    <datasource add-missing-on-start="true" alias-view-columns="false" check-on-start="true" field-type-name="derby" helper-class="org.ofbiz.entity.datasource.GenericHelperDAO" name="localderbytenant" schema-name="OFBIZ" use-indices-unique="false" use-order-by-nulls="true" use-pk-constraint-names="false">
+        <read-data reader-name="tenant"/>
+        <read-data reader-name="seed"/>
+        <read-data reader-name="seed-initial"/>
+        <read-data reader-name="demo"/>
+        <read-data reader-name="ext"/>
+        <read-data reader-name="ext-test"/>
+        <read-data reader-name="ext-demo"/>
+        <!-- beware use-indices-unique="false" is needed because of Derby bug with null values in a unique index -->
+        <inline-jdbc isolation-level="ReadCommitted" jdbc-driver="org.apache.derby.jdbc.EmbeddedDriver" jdbc-password-lookup="derby-ofbiztenant" jdbc-uri="jdbc:derby:ofbiztenant;create=true" jdbc-username="ofbiz" pool-maxsize="100" pool-minsize="2" time-between-eviction-runs-millis="600000"/>
+        <!-- <jndi-jdbc jndi-server-name="localjndi" jndi-name="java:/DerbyDataSource" isolation-level="ReadCommitted"/> -->
+    </datasource>
+    
+    <!-- SCIPIO: 2018-06-05: Removed Axion DB support -->
+
+    <!-- SCIPIO: 2018-06-05: Removed Daffodil DB support -->
+
+    <datasource add-missing-on-start="true" alias-view-columns="false" character-set="utf8mb4" check-on-start="true" check-pks-on-start="false" collate="utf8mb4_general_ci" drop-fk-use-foreign-key-keyword="true" field-type-name="mysql" helper-class="org.ofbiz.entity.datasource.GenericHelperDAO" join-style="ansi-no-parenthesis" name="localmysql" row-format="none" table-type="InnoDB" use-foreign-keys="true">
+            <!-- SCIPIO: Set to UTF8 for compatibility with UTF8 datasets -->
+            <!-- SCIPIO (2018/01/15): Changed the collation from utf8mb4_col to ut8mb4_general_ci  -->
+            <!-- SCIPIO: If row-format is set to dynamic fixes the 'Specified key was too long; max key length is 767 bytes' issue (only for MySQL 5.6+ and MariaDB 10.1+)
+                You also have to issue these commands in mysql CLI:
+                set global innodb_large_prefix=on;
+                set global innodb_file_format=Barracuda;
+             -->
+        <read-data reader-name="tenant"/>
+        <read-data reader-name="seed"/>
+        <read-data reader-name="seed-initial"/>
+        <read-data reader-name="demo"/>
+        <read-data reader-name="ext"/>
+        <read-data reader-name="ext-test"/>
+        <read-data reader-name="ext-demo"/>
+        <inline-jdbc isolation-level="ReadCommitted" jdbc-driver="com.mysql.jdbc.Driver" jdbc-password="Shyam1996." jdbc-uri="jdbc:mysql://127.0.0.1:3306/goldenox?autoReconnect=true" jdbc-username="root" pool-maxsize="100" pool-minsize="2" time-between-eviction-runs-millis="600000"/>
+<!-- Please note that at least one person has experienced a problem with this value with MySQL
+                and had to set it to -1 in order to avoid this issue.
+                For more look at http://markmail.org/thread/5sivpykv7xkl66px and http://commons.apache.org/dbcp/configuration.html-->
+        <!-- <jndi-jdbc jndi-server-name="localjndi" jndi-name="java:/MySqlDataSource" isolation-level="Serializable"/> -->
+    </datasource>
+    <datasource add-missing-on-start="true" alias-view-columns="false" character-set="utf8mb4" check-on-start="true" check-pks-on-start="false" collate="utf8mb4_general_ci" drop-fk-use-foreign-key-keyword="true" field-type-name="mysql" helper-class="org.ofbiz.entity.datasource.GenericHelperDAO" join-style="ansi-no-parenthesis" name="localmysqlolap" row-format="none" table-type="InnoDB" use-foreign-keys="true">
+            <!-- SCIPIO: Set to UTF8 for compatibility with UTF8 datasets -->
+            <!-- SCIPIO (2018/01/15): Changed the collation from utf8mb4_col to ut8mb4_general_ci  -->
+            <!-- SCIPIO: If row-format is set to dynamic fixes the 'Specified key was too long; max key length is 767 bytes' issue (only for MySQL 5.6+ and MariaDB 10.1+)
+                You also have to issue these commands in mysql CLI:
+                set global innodb_large_prefix=on;
+                set global innodb_file_format=Barracuda;
+             -->
+        <read-data reader-name="tenant"/>
+        <read-data reader-name="seed"/>
+        <read-data reader-name="seed-initial"/>
+        <read-data reader-name="demo"/>
+        <read-data reader-name="ext"/>
+        <read-data reader-name="ext-test"/>
+        <read-data reader-name="ext-demo"/>
+        <inline-jdbc isolation-level="ReadCommitted" jdbc-driver="com.mysql.jdbc.Driver" jdbc-password="ofbiz" jdbc-uri="jdbc:mysql://127.0.0.1/ofbizolap?autoReconnect=true" jdbc-username="ofbiz" pool-maxsize="100" pool-minsize="2" time-between-eviction-runs-millis="600000"/>
+<!-- Please note that at least one person has experienced a problem with this value with MySQL
+                and had to set it to -1 in order to avoid this issue.
+                For more look at http://markmail.org/thread/5sivpykv7xkl66px and http://commons.apache.org/dbcp/configuration.html-->
+        <!-- <jndi-jdbc jndi-server-name="localjndi" jndi-name="java:/MySqlDataSource" isolation-level="Serializable"/> -->
+    </datasource>
+    <datasource add-missing-on-start="true" alias-view-columns="false" character-set="utf8mb4" check-on-start="true" check-pks-on-start="false" collate="utf8mb4_general_ci" drop-fk-use-foreign-key-keyword="true" field-type-name="mysql" helper-class="org.ofbiz.entity.datasource.GenericHelperDAO" join-style="ansi-no-parenthesis" name="localmysqltenant" row-format="none" table-type="InnoDB" use-foreign-keys="true">
+            <!-- SCIPIO: Set to UTF8 for compatibility with UTF8 datasets -->
+            <!-- SCIPIO (2018/01/15): Changed the collation from utf8mb4_col to ut8mb4_general_ci  -->
+            <!-- SCIPIO: If row-format is set to dynamic fixes the 'Specified key was too long; max key length is 767 bytes' issue (only for MySQL 5.6+ and MariaDB 10.1+)
+                You also have to issue these commands in mysql CLI:
+                set global innodb_large_prefix=on;
+                set global innodb_file_format=Barracuda;
+             -->
+        <read-data reader-name="tenant"/>
+        <read-data reader-name="seed"/>
+        <read-data reader-name="seed-initial"/>
+        <read-data reader-name="demo"/>
+        <read-data reader-name="ext"/>
+        <read-data reader-name="ext-test"/>
+        <read-data reader-name="ext-demo"/>
+        <inline-jdbc isolation-level="ReadCommitted" jdbc-driver="com.mysql.jdbc.Driver" jdbc-password="ofbiz" jdbc-uri="jdbc:mysql://127.0.0.1/ofbiztenant?autoReconnect=true" jdbc-username="ofbiz" pool-maxsize="100" pool-minsize="2" time-between-eviction-runs-millis="600000"/>
+<!-- Please note that at least one person has experienced a problem with this value with MySQL
+                and had to set it to -1 in order to avoid this issue.
+                For more look at http://markmail.org/thread/5sivpykv7xkl66px and http://commons.apache.org/dbcp/configuration.html-->
+        <!-- <jndi-jdbc jndi-server-name="localjndi" jndi-name="java:/MySqlDataSource" isolation-level="Serializable"/> -->
+    </datasource>
+    <datasource add-missing-on-start="true" alias-view-columns="false" character-set="utf8mb4" check-on-start="true" check-pks-on-start="false" collate="utf8mb4_col" drop-fk-use-foreign-key-keyword="true" field-type-name="mysql" helper-class="org.ofbiz.entity.datasource.GenericHelperDAO" join-style="ansi-no-parenthesis" name="odbcmysql" table-type="InnoDB" use-foreign-keys="true">
+<!-- SCIPIO: Set to UTF8 for compatibility with UTF8 datasets -->
+        <read-data reader-name="tenant"/>
+        <read-data reader-name="seed"/>
+        <inline-jdbc isolation-level="ReadCommitted" jdbc-driver="com.mysql.jdbc.Driver" jdbc-password="ofbiz" jdbc-uri="jdbc:mysql://127.0.0.1/ofbiz_odbc?autoReconnect=true" jdbc-username="ofbiz" pool-maxsize="100" pool-minsize="2" time-between-eviction-runs-millis="600000"/>
+        <!-- <jndi-jdbc jndi-server-name="localjndi" jndi-name="java:/MySqlDataSource" isolation-level="Serializable"/> -->
+    </datasource>
+
+    <datasource add-missing-on-start="true" alias-view-columns="false" check-on-start="true" field-type-name="postgres" helper-class="org.ofbiz.entity.datasource.GenericHelperDAO" join-style="ansi" name="localpostgres" result-fetch-size="50" schema-name="public" use-binary-type-for-blob="true" use-fk-initially-deferred="false" use-order-by-nulls="true"> <!-- Comment out the result-fetch-size attribute for jdbc driver versions older than 8.0.
+            Not recommended to use those though. They are archived unsupported versions: http://jdbc.postgresql.org/download.html -->
+        
+        <read-data reader-name="tenant"/>
+        <read-data reader-name="seed"/>
+        <read-data reader-name="seed-initial"/>
+        <read-data reader-name="demo"/>
+        <read-data reader-name="ext"/>
+        <read-data reader-name="ext-test"/>
+        <read-data reader-name="ext-demo"/>
+        <inline-jdbc isolation-level="ReadCommitted" jdbc-driver="org.postgresql.Driver" jdbc-password="ofbiz" jdbc-uri="jdbc:postgresql://127.0.0.1/ofbiz" jdbc-username="ofbiz" pool-maxsize="100" pool-minsize="2" time-between-eviction-runs-millis="600000"/>
+<!-- Be warned that at this date (2009-09-20) the max_connections parameters in postgresql.conf
+                is set by default to 100 by the initdb process see http://www.postgresql.org/docs/8.4/static/runtime-config-connection.html#GUC-MAX-CONNECTIONS-->
+
+        <!-- <jndi-jdbc jndi-server-name="default" jndi-name="java:comp/env/jdbc/localpostgres" isolation-level="ReadCommitted"/>-->
+        <!-- <jndi-jdbc jndi-server-name="default" jndi-name="comp/env/jdbc/xa/localpostgres" isolation-level="ReadCommitted"/> --> <!-- Orion Style JNDI name -->
+        <!-- <jndi-jdbc jndi-server-name="localweblogic" jndi-name="PostgresDataSource"/> --> <!-- Weblogic Style JNDI name -->
+        <!-- <jndi-jdbc jndi-server-name="default" jndi-name="jdbc/localpostgres" isolation-level="ReadCommitted"/> --> <!-- JRun4 Style JNDI name -->
+        <!-- <tyrex-dataSource dataSource-name="localpostgres" isolation-level="ReadCommitted"/> -->
+    </datasource>
+    <datasource add-missing-on-start="true" alias-view-columns="false" check-on-start="true" field-type-name="postgres" helper-class="org.ofbiz.entity.datasource.GenericHelperDAO" join-style="ansi" name="localpostolap" result-fetch-size="50" schema-name="public" use-binary-type-for-blob="true" use-fk-initially-deferred="false" use-order-by-nulls="true">
+        <read-data reader-name="tenant"/>
+        <read-data reader-name="seed"/>
+        <read-data reader-name="seed-initial"/>
+        <read-data reader-name="demo"/>
+        <read-data reader-name="ext"/>
+        <read-data reader-name="ext-test"/>
+        <read-data reader-name="ext-demo"/>
+        <inline-jdbc isolation-level="ReadCommitted" jdbc-driver="org.postgresql.Driver" jdbc-password="ofbiz" jdbc-uri="jdbc:postgresql://127.0.0.1/ofbizolap" jdbc-username="ofbiz" pool-maxsize="100" pool-minsize="2" time-between-eviction-runs-millis="600000"/>
+<!-- Be warned that at this date (2009-09-20) the max_connections parameters in postgresql.conf
+                    is set by default to 100 by the initdb process see http://www.postgresql.org/docs/8.4/static/runtime-config-connection.html#GUC-MAX-CONNECTIONS-->
+        
+        <!-- <jndi-jdbc jndi-server-name="default" jndi-name="java:comp/env/jdbc/localpostgres" isolation-level="ReadCommitted"/>-->
+        <!-- <jndi-jdbc jndi-server-name="default" jndi-name="comp/env/jdbc/xa/localpostgres" isolation-level="ReadCommitted"/> --> <!-- Orion Style JNDI name -->
+        <!-- <jndi-jdbc jndi-server-name="localweblogic" jndi-name="PostgresDataSource"/> --> <!-- Weblogic Style JNDI name -->
+        <!-- <jndi-jdbc jndi-server-name="default" jndi-name="jdbc/localpostgres" isolation-level="ReadCommitted"/> --> <!-- JRun4 Style JNDI name -->
+        <!-- <tyrex-dataSource dataSource-name="localpostgres" isolation-level="ReadCommitted"/> -->
+    </datasource>
+    <datasource add-missing-on-start="true" alias-view-columns="false" check-on-start="true" field-type-name="postgres" helper-class="org.ofbiz.entity.datasource.GenericHelperDAO" join-style="ansi" name="localposttenant" result-fetch-size="50" schema-name="public" use-binary-type-for-blob="true" use-fk-initially-deferred="false" use-order-by-nulls="true">
+        <read-data reader-name="tenant"/>
+        <read-data reader-name="seed"/>
+        <read-data reader-name="seed-initial"/>
+        <read-data reader-name="demo"/>
+        <read-data reader-name="ext"/>
+        <read-data reader-name="ext-test"/>
+        <read-data reader-name="ext-demo"/>
+        <inline-jdbc isolation-level="ReadCommitted" jdbc-driver="org.postgresql.Driver" jdbc-password="ofbiz" jdbc-uri="jdbc:postgresql://127.0.0.1/ofbiztenant" jdbc-username="ofbiz" pool-maxsize="100" pool-minsize="2" time-between-eviction-runs-millis="600000"/>
+<!-- Be warned that at this date (2009-09-20) the max_connections parameters in postgresql.conf
+                    is set by default to 100 by the initdb process see http://www.postgresql.org/docs/8.4/static/runtime-config-connection.html#GUC-MAX-CONNECTIONS-->
+        
+        <!-- <jndi-jdbc jndi-server-name="default" jndi-name="java:comp/env/jdbc/localpostgres" isolation-level="ReadCommitted"/>-->
+        <!-- <jndi-jdbc jndi-server-name="default" jndi-name="comp/env/jdbc/xa/localpostgres" isolation-level="ReadCommitted"/> --> <!-- Orion Style JNDI name -->
+        <!-- <jndi-jdbc jndi-server-name="localweblogic" jndi-name="PostgresDataSource"/> --> <!-- Weblogic Style JNDI name -->
+        <!-- <jndi-jdbc jndi-server-name="default" jndi-name="jdbc/localpostgres" isolation-level="ReadCommitted"/> --> <!-- JRun4 Style JNDI name -->
+        <!-- <tyrex-dataSource dataSource-name="localpostgres" isolation-level="ReadCommitted"/> -->
+    </datasource>
+
+
+    <!-- SCIPIO: 2017-04-05: TESTING/EXPERIMENTAL new fields for Postgresql
+        These "new" postgres datasources are Work-In-Progress and provide some extended storage field types.
+        WARN: The fields for localpostnew are inconsistent with all other datasource databases, and data logic could be affected!
+            Use at your own risk. May be removed in a future version (if further incorporated). -->
+    <datasource add-missing-on-start="true" alias-view-columns="false" check-on-start="true" field-type-name="postnew" helper-class="org.ofbiz.entity.datasource.GenericHelperDAO" join-style="ansi" name="localpostnew" result-fetch-size="50" schema-name="public" use-binary-type-for-blob="true" use-fk-initially-deferred="false" use-order-by-nulls="true"> <!-- Comment out the result-fetch-size attribute for jdbc driver versions older than 8.0.
+            Not recommended to use those though. They are archived unsupported versions: http://jdbc.postgresql.org/download.html -->
+        
+        <read-data reader-name="tenant"/>
+        <read-data reader-name="seed"/>
+        <read-data reader-name="seed-initial"/>
+        <read-data reader-name="demo"/>
+        <read-data reader-name="ext"/>
+        <read-data reader-name="ext-test"/>
+        <read-data reader-name="ext-demo"/>
+        <inline-jdbc isolation-level="ReadCommitted" jdbc-driver="org.postgresql.Driver" jdbc-password="ofbiz" jdbc-uri="jdbc:postgresql://127.0.0.1/ofbiz" jdbc-username="ofbiz" pool-maxsize="100" pool-minsize="2" time-between-eviction-runs-millis="600000"/>
+<!-- Be warned that at this date (2009-09-20) the max_connections parameters in postgresql.conf
+                is set by default to 100 by the initdb process see http://www.postgresql.org/docs/8.4/static/runtime-config-connection.html#GUC-MAX-CONNECTIONS-->
+
+        <!-- <jndi-jdbc jndi-server-name="default" jndi-name="java:comp/env/jdbc/localpostgres" isolation-level="ReadCommitted"/>-->
+        <!-- <jndi-jdbc jndi-server-name="default" jndi-name="comp/env/jdbc/xa/localpostgres" isolation-level="ReadCommitted"/> --> <!-- Orion Style JNDI name -->
+        <!-- <jndi-jdbc jndi-server-name="localweblogic" jndi-name="PostgresDataSource"/> --> <!-- Weblogic Style JNDI name -->
+        <!-- <jndi-jdbc jndi-server-name="default" jndi-name="jdbc/localpostgres" isolation-level="ReadCommitted"/> --> <!-- JRun4 Style JNDI name -->
+        <!-- <tyrex-dataSource dataSource-name="localpostgres" isolation-level="ReadCommitted"/> -->
+    </datasource>
+
+    <datasource add-missing-on-start="true" alias-view-columns="false" check-on-start="true" field-type-name="postnew" helper-class="org.ofbiz.entity.datasource.GenericHelperDAO" join-style="ansi" name="localpostolapnew" result-fetch-size="50" schema-name="public" use-binary-type-for-blob="true" use-fk-initially-deferred="false" use-order-by-nulls="true">
+        <read-data reader-name="tenant"/>
+        <read-data reader-name="seed"/>
+        <read-data reader-name="seed-initial"/>
+        <read-data reader-name="demo"/>
+        <read-data reader-name="ext"/>
+        <read-data reader-name="ext-test"/>
+        <read-data reader-name="ext-demo"/>
+        <inline-jdbc isolation-level="ReadCommitted" jdbc-driver="org.postgresql.Driver" jdbc-password="ofbiz" jdbc-uri="jdbc:postgresql://127.0.0.1/ofbizolap" jdbc-username="ofbiz" pool-maxsize="100" pool-minsize="2" time-between-eviction-runs-millis="600000"/>
+<!-- Be warned that at this date (2009-09-20) the max_connections parameters in postgresql.conf
+                    is set by default to 100 by the initdb process see http://www.postgresql.org/docs/8.4/static/runtime-config-connection.html#GUC-MAX-CONNECTIONS-->
+        
+        <!-- <jndi-jdbc jndi-server-name="default" jndi-name="java:comp/env/jdbc/localpostgres" isolation-level="ReadCommitted"/>-->
+        <!-- <jndi-jdbc jndi-server-name="default" jndi-name="comp/env/jdbc/xa/localpostgres" isolation-level="ReadCommitted"/> --> <!-- Orion Style JNDI name -->
+        <!-- <jndi-jdbc jndi-server-name="localweblogic" jndi-name="PostgresDataSource"/> --> <!-- Weblogic Style JNDI name -->
+        <!-- <jndi-jdbc jndi-server-name="default" jndi-name="jdbc/localpostgres" isolation-level="ReadCommitted"/> --> <!-- JRun4 Style JNDI name -->
+        <!-- <tyrex-dataSource dataSource-name="localpostgres" isolation-level="ReadCommitted"/> -->
+    </datasource>
+    
+    <datasource add-missing-on-start="true" alias-view-columns="false" check-on-start="true" field-type-name="postnew" helper-class="org.ofbiz.entity.datasource.GenericHelperDAO" join-style="ansi" name="localposttenantnew" result-fetch-size="50" schema-name="public" use-binary-type-for-blob="true" use-fk-initially-deferred="false" use-order-by-nulls="true">
+        <read-data reader-name="tenant"/>
+        <read-data reader-name="seed"/>
+        <read-data reader-name="seed-initial"/>
+        <read-data reader-name="demo"/>
+        <read-data reader-name="ext"/>
+        <read-data reader-name="ext-test"/>
+        <read-data reader-name="ext-demo"/>
+        <inline-jdbc isolation-level="ReadCommitted" jdbc-driver="org.postgresql.Driver" jdbc-password="ofbiz" jdbc-uri="jdbc:postgresql://127.0.0.1/ofbiztenant" jdbc-username="ofbiz" pool-maxsize="100" pool-minsize="2" time-between-eviction-runs-millis="600000"/>
+<!-- Be warned that at this date (2009-09-20) the max_connections parameters in postgresql.conf
+                    is set by default to 100 by the initdb process see http://www.postgresql.org/docs/8.4/static/runtime-config-connection.html#GUC-MAX-CONNECTIONS-->
+        
+        <!-- <jndi-jdbc jndi-server-name="default" jndi-name="java:comp/env/jdbc/localpostgres" isolation-level="ReadCommitted"/>-->
+        <!-- <jndi-jdbc jndi-server-name="default" jndi-name="comp/env/jdbc/xa/localpostgres" isolation-level="ReadCommitted"/> --> <!-- Orion Style JNDI name -->
+        <!-- <jndi-jdbc jndi-server-name="localweblogic" jndi-name="PostgresDataSource"/> --> <!-- Weblogic Style JNDI name -->
+        <!-- <jndi-jdbc jndi-server-name="default" jndi-name="jdbc/localpostgres" isolation-level="ReadCommitted"/> --> <!-- JRun4 Style JNDI name -->
+        <!-- <tyrex-dataSource dataSource-name="localpostgres" isolation-level="ReadCommitted"/> -->
+    </datasource>
+
+
+    <datasource add-missing-on-start="true" alias-view-columns="false" check-on-start="true" field-type-name="oracle" helper-class="org.ofbiz.entity.datasource.GenericHelperDAO" join-style="ansi" name="localoracle" schema-name="OFBIZ" use-order-by-nulls="true">
+        <read-data reader-name="tenant"/>
+        <read-data reader-name="seed"/>
+        <read-data reader-name="seed-initial"/>
+        <read-data reader-name="demo"/>
+        <read-data reader-name="ext"/>
+        <read-data reader-name="ext-test"/>
+        <read-data reader-name="ext-demo"/>
+        <inline-jdbc jdbc-driver="oracle.jdbc.driver.OracleDriver" jdbc-password="ofbiz" jdbc-uri="jdbc:oracle:thin:@127.0.0.1:1521:ofbiz" jdbc-username="ofbiz" pool-maxsize="100" pool-minsize="2" time-between-eviction-runs-millis="600000"/>
+    </datasource>
+    <datasource add-missing-on-start="true" check-on-start="true" field-type-name="oracle" helper-class="org.ofbiz.entity.datasource.GenericHelperDAO" join-style="ansi" name="localoracledd" schema-name="OFBIZ" use-order-by-nulls="true">
+        <read-data reader-name="main"/>
+        <inline-jdbc jdbc-driver="com.ddtek.jdbc.oracle.OracleDriver" jdbc-password="ofbiz" jdbc-uri="jdbc:datadirect:oracle://127.0.0.1:1521;SID=ofbiz" jdbc-username="ofbiz" pool-maxsize="100" pool-minsize="2" time-between-eviction-runs-millis="600000"/>
+    </datasource>
+
+    <!-- SCIPIO: 2018-06-05: Removed Sybase DB support -->
+
+    <datasource add-missing-on-start="true" check-on-start="true" field-type-name="sapdb" fk-style="name_fk" helper-class="org.ofbiz.entity.datasource.GenericHelperDAO" join-style="ansi-no-parenthesis" name="localsapdb" use-fk-initially-deferred="false">
+        <read-data reader-name="tenant"/>
+        <read-data reader-name="seed"/>
+        <read-data reader-name="seed-initial"/>
+        <read-data reader-name="demo"/>
+        <read-data reader-name="ext"/>
+        <read-data reader-name="ext-test"/>
+        <read-data reader-name="ext-demo"/>
+        <inline-jdbc isolation-level="ReadCommitted" jdbc-driver="com.sap.dbtech.jdbc.DriverSapDB" jdbc-password="ofbiz" jdbc-uri="jdbc:sapdb://localhost/OFBIZ" jdbc-username="ofbiz" pool-maxsize="100" pool-minsize="2" time-between-eviction-runs-millis="600000"/>
+        <!-- <jndi-jdbc jndi-server-name="default" jndi-name="comp/env/jdbc/xa/localsapdb" isolation-level="ReadCommitted"/> --> <!-- Orion Style JNDI name -->
+        <!-- <jndi-jdbc jndi-server-name="localweblogic" jndi-name="SapDBDataSource"/> --> <!-- Weblogic Style JNDI name -->
+        <!-- <jndi-jdbc jndi-server-name="default" jndi-name="jdbc/localsapdb" isolation-level="ReadCommitted"/> --> <!-- JRun4 Style JNDI name -->
+        <!-- <tyrex-dataSource dataSource-name="localsapdb" isolation-level="ReadCommitted"/> -->
+    </datasource>
+
+    <datasource add-missing-on-start="true" alias-view-columns="false" check-on-start="true" field-type-name="firebird" helper-class="org.ofbiz.entity.datasource.GenericHelperDAO" join-style="ansi" name="localfirebird" use-foreign-key-indices="false">
+        <read-data reader-name="tenant"/>
+        <read-data reader-name="seed"/>
+        <read-data reader-name="seed-initial"/>
+        <read-data reader-name="demo"/>
+        <read-data reader-name="ext"/>
+        <read-data reader-name="ext-test"/>
+        <read-data reader-name="ext-demo"/>
+        <inline-jdbc isolation-level="ReadCommitted" jdbc-driver="org.firebirdsql.jdbc.FBDriver" jdbc-password="masterkey" jdbc-uri="jdbc:firebirdsql:127.0.0.1:C:\\data\\ofbiz.gdb" jdbc-username="SYSDBA" pool-maxsize="100" pool-minsize="2" time-between-eviction-runs-millis="600000"/>
+        <!-- Sample remote URI: jdbc-uri="jdbc:firebirdsql://localhost:3050//opt/interbase/data/ofbiz.gdb" -->
+        <!-- <jndi-jdbc jndi-server-name="default" jndi-name="comp/env/jdbc/xa/localfirebird" isolation-level="ReadCommitted"/> --> <!-- Orion Style JNDI name -->
+        <!-- <tyrex-dataSource dataSource-name="firebird" isolation-level="ReadCommitted"/> -->
+    </datasource>
+    <!--
+     The following has been tested with SQL Server 2005 + MS SQL Server JDBC Driver 1.1
+     Tips:
+      1. Make sure your SQL Server has mixed mode authentication as per this post:
+       http://aspadvice.com/blogs/plitwin/archive/2006/09/10/Login-failed-_2E002E002E00_-not-associated-with-a-trusted-SQL-server-connection.aspx
+      2. Make sure you have copied JDBC driver jar to entity/lib/jdbc
+      3. Make sure you have installed JDBC Driver XA support as per MSSQL_JDBC_HOME/enu/xa/xa_install.sql
+      4. Make sure that you have created and authorized the ofbiz database and login
+      5. Make sure that schema-name, jdbc-username, jdbc-password and databaseName are all correct!
+
+     Notes:
+     a. The reason for putting SelectMethod=cursor property in URL is explained here:
+      http://forum.java.sun.com/thread.jspa?forumID=48&threadID=184797
+     b. If using an old version of the driver, beware of this resource leak:
+      http://support.microsoft.com/kb/820773/
+    -->
+    <datasource add-missing-on-start="true" alias-view-columns="false" check-on-start="true" field-type-name="mssql" helper-class="org.ofbiz.entity.datasource.GenericHelperDAO" join-style="ansi" name="localmssql" schema-name="dbo" use-fk-initially-deferred="false">
+        <read-data reader-name="tenant"/>
+        <read-data reader-name="seed"/>
+        <read-data reader-name="seed-initial"/>
+        <read-data reader-name="demo"/>
+        <read-data reader-name="ext"/>
+        <read-data reader-name="ext-test"/>
+        <read-data reader-name="ext-demo"/>
+        <inline-jdbc isolation-level="ReadCommitted" jdbc-driver="com.microsoft.sqlserver.jdbc.SQLServerDriver" jdbc-password="ofbiz" jdbc-uri="jdbc:sqlserver://localhost:1791;databaseName=ofbiz;SelectMethod=cursor;" jdbc-username="ofbiz" pool-maxsize="100" pool-minsize="2" time-between-eviction-runs-millis="600000"/>
+        <!-- <jndi-jdbc jndi-server-name="default" jndi-name="comp/env/jdbc/xa/localmssql" isolation-level="ReadCommitted"/> --> <!-- Orion Style JNDI name -->
+    </datasource>
+
+    <datasource add-missing-on-start="true" check-on-start="true" field-type-name="postgres" helper-class="org.ofbiz.entity.datasource.GenericHelperDAO" join-style="ansi" name="localp6spy" schema-name="public">
+        <read-data reader-name="tenant"/>
+        <read-data reader-name="seed"/>
+        <read-data reader-name="seed-initial"/>
+        <read-data reader-name="demo"/>
+        <read-data reader-name="ext"/>
+        <read-data reader-name="ext-test"/>
+        <read-data reader-name="ext-demo"/>
+        <inline-jdbc isolation-level="ReadCommitted" jdbc-driver="com.p6spy.engine.spy.P6SpyDriver" jdbc-password="ofbiz" jdbc-uri="jdbc:postgresql://127.0.0.1/ofbiz" jdbc-username="ofbiz" pool-maxsize="100" pool-minsize="2" time-between-eviction-runs-millis="600000"/>
+        <!-- <jndi-jdbc jndi-server-name="localjndi" jndi-name="java:/OracleDataSource" isolation-level="Serializable"/> -->
+    </datasource>
+
+    <datasource add-missing-on-start="true" alias-view-columns="false" always-use-constraint-keyword="true" check-indices-on-start="false" check-on-start="true" field-type-name="advantage" helper-class="org.ofbiz.entity.datasource.GenericHelperDAO" join-style="ansi-no-parenthesis" name="localadvantage" use-foreign-key-indices="true" use-foreign-keys="false">
+        <read-data reader-name="tenant"/>
+        <read-data reader-name="seed"/>
+        <read-data reader-name="seed-initial"/>
+        <read-data reader-name="demo"/>
+        <read-data reader-name="ext"/>
+        <read-data reader-name="ext-test"/>
+        <read-data reader-name="ext-demo"/>
+        <inline-jdbc isolation-level="ReadCommitted" jdbc-driver="com.extendedsystems.jdbc.advantage.ADSDriver" jdbc-password="adssys" jdbc-uri="jdbc:extendedsystems:advantage://localhost:6262;catalog=c:\\advantage\\OFBIZ.ADD;TableType=adt" jdbc-username="ADSSYS" pool-maxsize="100" pool-minsize="2" time-between-eviction-runs-millis="600000"/>
+    </datasource>
+    
+    <!-- SCIPIO: 2018-06-05: Added MariaDB support -->
+    <!-- List of table-types (storage engine): https://mariadb.com/kb/en/library/choosing-the-right-storage-engine/ -->
+    <datasource add-missing-on-start="true" alias-view-columns="false" character-set="utf8mb4" check-on-start="true" check-pks-on-start="false" collate="utf8mb4_general_ci" drop-fk-use-foreign-key-keyword="true" field-type-name="mariadb" helper-class="org.ofbiz.entity.datasource.GenericHelperDAO" join-style="ansi-no-parenthesis" name="localmariadb" row-format="none" table-type="InnoDB" use-foreign-keys="true"> 
+            <!-- Default character set is latin1_swedish_ci but throws errors with seed data -->
+            <!-- SCIPIO: If row-format is set to dynamic fixes the 'Specified key was too long; max key length is 767 bytes' issue (only for MySQL 5.6+ and MariaDB 10.1+)
+                You also have to issue these commands in mysql CLI:
+                set global innodb_large_prefix=on;
+                set global innodb_file_format=Barracuda;
+             -->
+        <read-data reader-name="tenant"/>
+        <read-data reader-name="seed"/>
+        <read-data reader-name="seed-initial"/>
+        <read-data reader-name="demo"/>
+        <read-data reader-name="ext"/>
+        <read-data reader-name="ext-test"/>
+        <read-data reader-name="ext-demo"/>
+        <inline-jdbc isolation-level="ReadCommitted" jdbc-driver="org.mariadb.jdbc.Driver" jdbc-password="ofbiz" jdbc-uri="jdbc:mariadb://127.0.0.1/scipio?autoReconnect=true" jdbc-username="ofbiz" pool-maxsize="100" pool-minsize="2" time-between-eviction-runs-millis="600000"/>
+    </datasource>
+    
+    <!-- According to http://markmail.org/message/s75sf6zhtizzkqbv Since version V6R1 (AS/400, db2) there is no need for an own fieldtype.xml - just use the derby-fieldtypes like this: -->
+    <!-- Beware use-indices-unique="false" is needed because of Derby bug with null values in a unique index, not sure it's needed with DB2 -->
+    <datasource add-missing-on-start="true" alias-view-columns="false" check-on-start="true" field-type-name="derby" helper-class="org.ofbiz.entity.datasource.GenericHelperDAO" name="DB2" offset-style="fetch" schema-name="OFBIZ" use-indices-unique="false" use-order-by-nulls="true" use-pk-constraint-names="false">
+        <read-data reader-name="tenant"/>
+        <read-data reader-name="seed"/>
+        <read-data reader-name="seed-initial"/>
+        <read-data reader-name="demo"/>
+        <read-data reader-name="ext"/>
+        <read-data reader-name="ext-test"/>
+        <read-data reader-name="ext-demo"/>
+            
+            <!--   There is an open source version of the jdbc driver at sourceforge: http://sourceforge.net/projects/jt400/ -->
+        <inline-jdbc isolation-level="ReadCommitted" jdbc-driver="com.ibm.as400.access.AS400JDBCDriver" jdbc-password="ofbiz" jdbc-uri="jdbc:as400:192.168.1.10;prompt=false;libraries=ofbiz;lazyclose=true;translate binary=true" jdbc-username="ofbiz" pool-maxsize="250" pool-minsize="2" time-between-eviction-runs-millis="600000"/>
+    </datasource>
+</entity-config>
